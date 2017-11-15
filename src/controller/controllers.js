@@ -1,22 +1,22 @@
 import axios from 'axios'
 
 import variables from '../config/variables.js'
+import config from '../config/config'
 
-// TODO: add collection validator
+const sources = config()
 
 async function getSources (request, response) {
-  let out = 'Kappa'
-  response.send(out)
+  response.send(await sources())
 }
 
 async function getFromSources (request, response) {
   const startDate = request.params.startDate
   const endDate = request.params.endDate
-  const sources = request.params[0].slice(1).split('/')
+  const requestedSource = request.params[0].slice(1).split('/')
 
   const data = {}
 
-  for (let source of sources) {
+  for (let source of requestedSource) {
     const out = await axios.get('http://' + variables.DB_SERVICE_HOST + ':' + variables.DB_SERVICE_PORT + '/' + source + '/' + startDate + '/' + endDate)
     data[source] = out.data
   }
@@ -24,7 +24,7 @@ async function getFromSources (request, response) {
   response.send({
     startDate: startDate,
     endDate: endDate,
-    sources: sources,
+    sources: requestedSource,
     data: data
   })
 }
@@ -41,8 +41,10 @@ async function getFromAll (request, response) {
   })
 }
 
-export default {
-  getSources: getSources,
-  getFromAll: getFromAll,
-  getFromSources: getFromSources
+export default () => {
+  return {
+    getSources: getSources,
+    getFromAll: getFromAll,
+    getFromSources: getFromSources
+  }
 }
