@@ -10,35 +10,44 @@ async function getSources (request, response) {
 }
 
 async function getFromSources (request, response) {
+  const availableSources = await sources()
+
   const startDate = request.params.startDate
   const endDate = request.params.endDate
-  const requestedSource = request.params[0].slice(1).split('/')
+  const requestedSources = request.params[0].slice(1).split('/')
 
-  const data = {}
-
-  for (let source of requestedSource) {
-    const out = await axios.get('http://' + variables.DB_SERVICE_HOST + ':' + variables.DB_SERVICE_PORT + '/' + source + '/' + startDate + '/' + endDate)
-    data[source] = out.data
+  for (let source of requestedSources) {
+    if (!availableSources.includes(source)) {
+      response.status(400).send('Source(s) unavailable')
+      return
+    }
   }
 
-  response.send({
-    startDate: startDate,
-    endDate: endDate,
-    sources: requestedSource,
-    data: data
-  })
+  response.send(await requestData(startDate, endDate, requestedSources))
 }
 
 async function getFromAll (request, response) {
   const startDate = request.params.startDate
   const endDate = request.params.endDate
-  const sources = 'Kappa'
+  const from = await sources()
 
-  response.send({
+  response.send(await requestData(startDate, endDate, from))
+}
+
+async function requestData (startDate, endDate, requestedSources) {
+  const data = {}
+
+  for (let source of requestedSources) {
+    const out = await axios.get('http://' + variables.DB_SERVICE_HOST + ':' + variables.DB_SERVICE_PORT + '/' + source + '/' + startDate + '/' + endDate)
+    data[source] = out.data
+  }
+
+  return {
     startDate: startDate,
     endDate: endDate,
-    sources: sources
-  })
+    sources: requestedSources,
+    data: data
+  }
 }
 
 export default () => {
