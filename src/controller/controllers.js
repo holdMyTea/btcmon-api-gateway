@@ -6,7 +6,11 @@ import config from '../config/config'
 const sources = config()
 
 async function getSources (request, response) {
-  response.send(await sources())
+  const availableSources = await sources()
+
+  response.send({
+    sources: availableSources
+  })
 }
 
 async function getFromSources (request, response) {
@@ -26,6 +30,40 @@ async function getFromSources (request, response) {
   response.send(await requestData(startDate, endDate, requestedSources))
 }
 
+async function getFromSourcesSampled (request, response) {
+  const availableSources = await sources()
+
+  const startDate = request.params.startDate
+  const endDate = request.params.endDate
+  const samples = request.params.samples
+  const requestedSources = request.params[0].slice(1).split('/')
+
+  for (let source of requestedSources) {
+    if (!availableSources.includes(source)) {
+      response.status(400).send('Source(s) unavailable')
+      return
+    }
+  }
+
+  const receivedData = await requestData(startDate, endDate, requestedSources)
+  receivedData.data.forEach(
+    source => {
+      const filterValue = (source.data.length / samples).toFixed(0)
+      source.data = source.data.filter(
+        (value, index) => index % filterValue === 0
+      )
+    }
+  )
+
+  response.send({
+    startDate,
+    endDate,
+    samples,
+    sources: requestedSources,
+    data: receivedData.data
+  })
+}
+
 async function getFromAll (request, response) {
   const startDate = request.params.startDate
   const endDate = request.params.endDate
@@ -35,25 +73,38 @@ async function getFromAll (request, response) {
 }
 
 async function requestData (startDate, endDate, requestedSources) {
-  const data = {}
+  const data = []
+  const requests = []
 
   for (let source of requestedSources) {
-    const out = await axios.get('http://' + variables.DB_SERVICE_HOST + ':' + variables.DB_SERVICE_PORT + '/' + source + '/' + startDate + '/' + endDate)
-    data[source] = out.data
+    requests.push(
+      axios.get('http://' + variables.DB_SERVICE_HOST + ':' + variables.DB_SERVICE_PORT +
+        '/' + source + '/' + startDate + '/' + endDate).then(
+        response => {
+          data.push({
+            name: source,
+            data: response.data
+          })
+        }
+      )
+    )
   }
 
+  await Promise.all(requests)
+
   return {
-    startDate: startDate,
-    endDate: endDate,
+    startDate,
+    endDate,
     sources: requestedSources,
-    data: data
+    data
   }
 }
 
 export default () => {
   return {
-    getSources: getSources,
-    getFromAll: getFromAll,
-    getFromSources: getFromSources
+    getSources,
+    getFromAll,
+    getFromSources,
+    getFromSourcesSampled
   }
 }

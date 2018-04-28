@@ -9,6 +9,8 @@ router.get('/sources', callbacks.getSources)
 
 router.get('/:startDate(\\d{13})/:endDate(\\d{13})/all', callbacks.getFromAll)
 
+router.get('/:startDate(\\d{13})/:endDate(\\d{13})/:samples(\\d{1,2})*?', callbacks.getFromSourcesSampled)
+
 router.get('/:startDate(\\d{13})/:endDate(\\d{13})*?', callbacks.getFromSources)
 
 export default router
